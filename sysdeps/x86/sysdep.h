@@ -25,6 +25,13 @@
 
 /* Syntactic details of assembler.  */
 
+#ifdef _CET_ENDBR
+# define _CET_NOTRACK notrack
+#else
+# define _CET_ENDBR
+# define _CET_NOTRACK
+#endif
+
 /* ELF uses byte-counts for .align, most others use log2 of count of bytes.  */
 #define ALIGNARG(log2) 1<<log2
 #define ASM_SIZE_DIRECTIVE(name) .size name,.-name;
@@ -36,6 +43,7 @@
   .align ALIGNARG(4);							      \
   C_LABEL(name)								      \
   cfi_startproc;							      \
+  _CET_ENDBR;								      \
   CALL_MCOUNT
 
 #undef	END
