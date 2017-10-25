@@ -19,11 +19,64 @@
 #include <errno.h>
 #include <libintl.h>
 #include <ldsodefs.h>
+#include <pthread.h>
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 static int
 dl_cet_mark_legacy_region (struct link_map *l)
 {
-  /* FIXME: Mark legacy region  */
+  /* Mark PT_LOAD segments with PF_X in legacy code page bitmap.  */
+  size_t i, phnum = l->l_phnum;
+  const ElfW(Phdr) *phdr = l->l_phdr;
+#ifdef __x86_64__
+  typedef unsigned long long word_t;
+#else
+  typedef unsigned long word_t;
+#endif
+  unsigned int bits_to_set;
+  word_t mask_to_set;
+#define BITS_PER_WORD (sizeof (word_t) * 8)
+#define BITMAP_FIRST_WORD_MASK(start) \
+  (~((word_t) 0) << ((start) & (BITS_PER_WORD - 1)))
+#define BITMAP_LAST_WORD_MASK(nbits) \
+  (~((word_t) 0) >> (-(nbits) & (BITS_PER_WORD - 1)))
+
+  word_t *bitmap = (word_t *) GL(dl_x86_legacy_bitmap)[0];
+  word_t bitmap_size = GL(dl_x86_legacy_bitmap)[1];
+  word_t *p;
+  size_t page_size = GLRO(dl_pagesize);
+
+  for (i = 0; i < phnum; i++)
+    if (phdr[i].p_type == PT_LOAD && (phdr[i].p_flags & PF_X))
+      {
+	/* One bit in legacy bitmap represents a page.  */
+	ElfW(Addr) start = (phdr[i].p_vaddr + l->l_addr) / page_size;
+	ElfW(Addr) len = (phdr[i].p_memsz + page_size - 1) / page_size;
+	ElfW(Addr) end = start + len;
+
+	if ((end / 8) > bitmap_size)
+	  return -EFAULT;
+
+	p = bitmap + (start / BITS_PER_WORD);
+	bits_to_set = BITS_PER_WORD - (start % BITS_PER_WORD);
+	mask_to_set = BITMAP_FIRST_WORD_MASK (start);
+
+	while (len >= bits_to_set)
+	  {
+	    *p |= mask_to_set;
+	    len -= bits_to_set;
+	    bits_to_set = BITS_PER_WORD;
+	    mask_to_set = ~((word_t) 0);
+	    p++;
+	  }
+	if (len)
+	  {
+	    mask_to_set &= BITMAP_LAST_WORD_MASK (end);
+	    *p |= mask_to_set;
+	  }
+      }
+
   return 0;
 }
 
@@ -32,6 +85,17 @@ dl_cet_mark_legacy_region (struct link_map *l)
 static void
 dl_cet_check (struct link_map *m, const char *program)
 {
+  /* Check if IBT should be always on.  */
+  bool ibt_always_on
+    = (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_IBT) != 0;
+  /* Check if SHSTK  should be always on.  */
+  bool shstk_always_on
+    = (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_SHSTK) != 0;
+
+  /* No legacy object check if both IBT and SHSTK are always on.  */
+  if (ibt_always_on && shstk_always_on)
+    return;
+
   /* Check if IBT is enabled by kernel.  */
   bool ibt_enabled
     = (GL(dl_x86_feature_1)[0] & GNU_PROPERTY_X86_FEATURE_1_IBT) != 0;
@@ -54,9 +118,11 @@ dl_cet_check (struct link_map *m, const char *program)
 	     GLIBC_TUNABLES=glibc.tune.hwcaps=-IBT,-SHSTK
 	   */
 	  enable_ibt &= (HAS_CPU_FEATURE (IBT)
-			 && (m->l_cet & lc_ibt) != 0);
+			 && (ibt_always_on
+			     || (m->l_cet & lc_ibt) != 0));
 	  enable_shstk &= (HAS_CPU_FEATURE (SHSTK)
-			   && (m->l_cet & lc_shstk) != 0);
+			   && (shstk_always_on
+			       || (m->l_cet & lc_shstk) != 0));
 	}
 
       /* ld.so is CET-enabled by kernel.  But shared objects may not
@@ -88,7 +154,7 @@ dl_cet_check (struct link_map *m, const char *program)
 		continue;
 #endif
 
-	      if (enable_ibt && !(l->l_cet & lc_ibt))
+	      if (enable_ibt && !ibt_always_on && !(l->l_cet & lc_ibt))
 		{
 		  /* Remember the first and last legacy objects.  */
 		  if (!need_legacy_bitmap)
@@ -99,11 +165,46 @@ dl_cet_check (struct link_map *m, const char *program)
 
 	      /* SHSTK is enabled only if it is enabled in executable as
 		 well as all shared objects.  */
-	      enable_shstk &= (l->l_cet & lc_shstk) != 0;
+	      enable_shstk &= (shstk_always_on
+			       || (l->l_cet & lc_shstk) != 0);
 	    }
 
 	  if (need_legacy_bitmap)
 	    {
+	      if (GL(dl_x86_legacy_bitmap)[0])
+		{
+		  /* Change legacy bitmap to writable.  */
+		  if (__mprotect ((void *) GL(dl_x86_legacy_bitmap)[0],
+				  GL(dl_x86_legacy_bitmap)[1],
+				  PROT_READ | PROT_WRITE) < 0)
+		    {
+mprotect_failure:
+		      if (program)
+			_dl_fatal_printf ("%s: mprotect legacy bitmap failed\n",
+					  l->l_name);
+		      else
+			_dl_signal_error (EINVAL, l->l_name, "dlopen",
+					  N_("mprotect legacy bitmap failed"));
+		    }
+		}
+	      else
+		{
+		  /* Allocate legacy bitmap.  */
+		  INTERNAL_SYSCALL_DECL (err);
+		  int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+					      ARCH_CET_LEGACY_BITMAP,
+					      GL(dl_x86_legacy_bitmap));
+		  if (res != 0)
+		    {
+		      if (program)
+			_dl_fatal_printf ("%s: legacy bitmap isn't available\n",
+					  l->l_name);
+		      else
+			_dl_signal_error (EINVAL, l->l_name, "dlopen",
+					  N_("legacy bitmap isn't available"));
+		    }
+		}
+
 	      /* Put legacy shared objects in legacy bitmap.  */
 	      for (i = first_legacy; i <= last_legacy; i++)
 		{
@@ -133,6 +234,11 @@ dl_cet_check (struct link_map *m, const char *program)
 					  N_("fail to mark legacy code region"));
 		    }
 		}
+
+	      /* Change legacy bitmap to read-only.  */
+	      if (__mprotect ((void *) GL(dl_x86_legacy_bitmap)[0],
+			      GL(dl_x86_legacy_bitmap)[1], PROT_READ) < 0)
+		goto mprotect_failure;
 	    }
 	}
 
@@ -149,17 +255,44 @@ dl_cet_check (struct link_map *m, const char *program)
 	    }
 
 #ifdef SHARED
-	  /* FIXME: Disable IBT and/or SHSTK if they are enabled in
-	     ld.so, but disabled in executable or shared objects.  */
-	  ;
+	  /* Disable IBT and/or SHSTK if they are enabled in ld.so, but
+	     disabled in executable or shared objects.  */
+	  unsigned int cet_feature = 0;
+
+	  if (!enable_ibt)
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+	  if (!enable_shstk)
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+
+	  INTERNAL_SYSCALL_DECL (err);
+	  int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+				      ARCH_CET_DISABLE,
+				      cet_feature);
+	  if (res != 0)
+	    _dl_fatal_printf ("%s: can't disable CET\n", program);
+
+	  /* Clear the disabled bits in dl_x86_feature_1.  */
+	  GL(dl_x86_feature_1)[0] &= ~cet_feature;
 #endif
 	}
 
 #ifdef SHARED
       if (program && (ibt_enabled || shstk_enabled))
 	{
-	  /* FIXME: Lock CET if IBT or SHSTK is enabled in executable.  */
-	  ;
+	  /* Lock CET if IBT or SHSTK is enabled in executable.  */
+	  INTERNAL_SYSCALL_DECL (err);
+	  int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+				      ARCH_CET_LOCK, 0);
+	  if (res != 0)
+	    _dl_fatal_printf ("%s: can't lock CET\n", program);
+
+	  unsigned int feature_1 = 0;
+	  if (enable_ibt)
+	    feature_1 |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+	  if (enable_shstk)
+	    feature_1 |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+	  struct pthread *self = THREAD_SELF;
+	  THREAD_SETMEM (self, header.feature_1, feature_1);
 	}
 #endif
     }
