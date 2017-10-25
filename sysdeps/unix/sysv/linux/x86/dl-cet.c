@@ -19,12 +19,32 @@
 #include <errno.h>
 #include <libintl.h>
 #include <ldsodefs.h>
+#include <pthread.h>
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 static inline int __attribute__ ((unused))
 dl_cet_mark_legacy_region (struct link_map *l)
 {
-  /* FIXME: Mark legacy region  */
-  return 0;
+  /* Put all executable PT_LOAD segments in legacy code page bitmap.  */
+  size_t i, phnum = l->l_phnum;
+  const ElfW(Phdr) *phdr = l->l_phdr;
+  int res = 0;
+
+  for (i = 0; i < phnum; i++)
+    if (phdr[i].p_type == PT_LOAD && (phdr[i].p_flags & PF_X))
+      {
+	unsigned long array[2]
+	  = { phdr[i].p_vaddr + l->l_addr, phdr[i].p_memsz };
+	INTERNAL_SYSCALL_DECL (err);
+	res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+				ARCH_CET_CONTROL_MARK_LEGACY_REGION,
+				array);
+	if (res != 0)
+	  break;
+      }
+
+  return res;
 }
 
 void
@@ -128,15 +148,42 @@ _dl_cet_init (struct link_map *main_map, int argc, char **argv, char **env)
 
       if (enable_ibt != ibt_enabled || enable_shstk != shstk_enabled)
 	{
-	  /* FIXME: Disable IBT and/or SHSTK if they are enabled in
-	     ld.so, but disabled in executable or shared objects.  */
-	  ;
+	  /* Disable IBT and/or SHSTK if they are enabled in ld.so, but
+	     disabled in executable or shared objects.  */
+	  unsigned int cet_feature = 0;
+
+	  if (!enable_ibt)
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+	  if (!enable_shstk)
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+
+	  INTERNAL_SYSCALL_DECL (err);
+	  int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+				      ARCH_CET_CONTROL_DISABLE,
+				      cet_feature);
+	  if (res != 0)
+	    _dl_fatal_printf ("%s: can't disable CET\n", argv[0]);
+
+	  /* Clear the disabled bits in dl_x86_feature_1.  */
+	  GL(dl_x86_feature_1) &= ~cet_feature;
 	}
 
       if (ibt_enabled || shstk_enabled)
 	{
-	  /* FIXME: Lock CET if IBT or SHSTK is enabled.  */
-	  ;
+	  /* Lock CET if IBT or SHSTK is enabled.  */
+	  INTERNAL_SYSCALL_DECL (err);
+	  int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+				      ARCH_CET_CONTROL_LOCK, 0);
+	  if (res != 0)
+	    _dl_fatal_printf ("%s: can't lock CET\n", argv[0]);
+
+	  unsigned int feature_1 = 0;
+	  if (enable_ibt)
+	    feature_1 |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+	  if (enable_shstk)
+	    feature_1 |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+	  struct pthread *self = THREAD_SELF;
+	  THREAD_SETMEM (self, header.feature_1, feature_1);
 	}
     }
 

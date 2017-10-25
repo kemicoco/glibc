@@ -1,5 +1,6 @@
-/* Copyright (C) 1997-2018 Free Software Foundation, Inc.
+/* Initialize CPU feature data for Linux/x86.
    This file is part of the GNU C Library.
+   Copyright (C) 2018 Free Software Foundation, Inc.
 
    The GNU C Library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -15,18 +16,29 @@
    License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef _SYS_PRCTL_H
-#define _SYS_PRCTL_H	1
+#ifdef ENABLE_CET
+# define init_cpu_features x86_init_cpu_features
+#endif
 
-#include <features.h>
-#include <linux/prctl.h>  /*  The magic values come from here  */
-#include <bits/prctl.h>
+#include_next <cpu-features.c>
 
-__BEGIN_DECLS
+#ifdef ENABLE_CET
+# undef init_cpu_features
+# include <startup.h>
+# include <sys/syscall.h>
+# include <sys/prctl.h>
 
-/* Control process execution.  */
-extern int prctl (int __option, ...) __THROW;
+static inline void
+init_cpu_features (struct cpu_features *cpu_features)
+{
+  /* Check CET status and update dl_x86_feature_1.  */
+  unsigned int cet_feature;
+  INTERNAL_SYSCALL_DECL (err);
+  int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+			      ARCH_CET_CONTROL_STATUS, &cet_feature);
+  if (res == 0)
+    GL(dl_x86_feature_1) = cet_feature;
 
-__END_DECLS
-
-#endif  /* sys/prctl.h */
+  x86_init_cpu_features (cpu_features);
+}
+#endif
