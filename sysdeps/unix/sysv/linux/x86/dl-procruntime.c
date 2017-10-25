@@ -54,4 +54,15 @@ PROCINFO_CLASS unsigned int _dl_x86_feature_1
 # else
 ,
 # endif
+
+# if !defined PROCINFO_DECL && defined SHARED
+  ._dl_x86_legacy_bitmap
+# else
+PROCINFO_CLASS unsigned long _dl_x86_legacy_bitmap[2]
+# endif
+# if !defined SHARED || defined PROCINFO_DECL
+;
+# else
+,
+# endif
 #endif
