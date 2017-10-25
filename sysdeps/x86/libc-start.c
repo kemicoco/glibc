@@ -16,6 +16,7 @@
    <http://www.gnu.org/licenses/>.  */
 
 #ifndef SHARED
+# include <startup.h>
 # include <ldsodefs.h>
 # include <cpu-features.h>
 # include <cpu-features.c>
