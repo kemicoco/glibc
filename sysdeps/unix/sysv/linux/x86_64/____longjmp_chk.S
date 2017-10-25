@@ -19,6 +19,7 @@
 #include <jmpbuf-offsets.h>
 #include <asm-syntax.h>
 #include <stap-probe.h>
+#include <bits/prctl.h>
 
 #include <sigaltstack-offsets.h>
 #include <jmp_buf-ssp.h>
@@ -111,6 +112,15 @@ ENTRY(____longjmp_chk)
 	/* Check if Shadow Stack is enabled.  */
 	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
 	jz	.Lnoadj
+# endif
+# if IS_IN (libc)
+	/* Call arch_prctl (ARCH_CET_CONTROL_RSTOR_SHSTK) to restore
+	   shadow stack.  */
+	movq    %rdi, %rbx
+	movl    $ARCH_CET_CONTROL_RSTOR_SHSTK, %edi
+	movl    $__NR_arch_prctl, %eax
+	syscall
+	movq    %rbx, %rdi
 # endif
 	/* Check and adjust the Shadow-Stack-Pointer.  */
 	xorl	%eax, %eax
