@@ -1,4 +1,4 @@
-/* Copyright (C) 1997-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2018 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -15,18 +15,7 @@
    License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
 
-#ifndef _SYS_PRCTL_H
-#define _SYS_PRCTL_H	1
+#ifndef _BITS_PRCTL_H
+#define _BITS_PRCTL_H	1
 
-#include <features.h>
-#include <linux/prctl.h>  /*  The magic values come from here  */
-#include <bits/prctl.h>
-
-__BEGIN_DECLS
-
-/* Control process execution.  */
-extern int prctl (int __option, ...) __THROW;
-
-__END_DECLS
-
-#endif  /* sys/prctl.h */
+#endif  /* bits/prctl.h */
