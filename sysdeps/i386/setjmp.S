@@ -18,12 +18,18 @@
 
 #include <sysdep.h>
 #include <jmpbuf-offsets.h>
+#include <jmp_buf-ssp.h>
 #include <asm-syntax.h>
 #include <stap-probe.h>
 
 #define PARMS	4		/* no space for saved regs */
 #define JMPBUF	PARMS
 #define SIGMSK	JMPBUF+4
+
+/* Don't save shadow stack register if shadow stack isn't enabled.  */
+#ifndef __SHSTK__
+# undef SHADOW_STACK_POINTER_OFFSET
+#endif
 
 ENTRY (__sigsetjmp)
 
@@ -46,6 +52,20 @@ ENTRY (__sigsetjmp)
 	movl %ecx, (JB_PC*4)(%eax)
 	movl %ebp, (JB_BP*4)(%eax) /* Save caller's frame pointer.  */
 
+#ifdef SHADOW_STACK_POINTER_OFFSET
+# if IS_IN (libc) && defined SHARED && defined FEATURE_1_OFFSET
+	/* Check if Shadow Stack is enabled.  */
+	testl $(1 << 1), %gs:FEATURE_1_OFFSET
+	jz .Lskip_ssp
+# endif
+	/* Get the current Shadow-Stack-Pointer and save it.  */
+	xorl %ecx, %ecx
+	rdsspd %ecx
+	movl %ecx, SHADOW_STACK_POINTER_OFFSET(%eax)
+# if IS_IN (libc) && defined SHARED && defined FEATURE_1_OFFSET
+.Lskip_ssp:
+# endif
+#endif
 #if IS_IN (rtld)
 	/* In ld.so we never save the signal mask.  */
 	xorl %eax, %eax
