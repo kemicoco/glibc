@@ -10,5 +10,6 @@ tests-static += tst-get-cpu-features-static
 endif
 
 ifeq ($(subdir),setjmp)
+gen-as-const-headers += jmp_buf-ssp.sym
 sysdep_routines += bsd-_setjmp_cancel __longjmp_cancel setjmp_cancel
 endif
