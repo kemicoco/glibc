@@ -704,6 +704,11 @@ __pthread_create_2_1 (pthread_t *newthread, const pthread_attr_t *attr,
   THREAD_COPY_POINTER_GUARD (pd);
 #endif
 
+  /* Copy additonal info.  */
+#ifdef THREAD_COPY_ADDITONAL_INFO
+  THREAD_COPY_ADDITONAL_INFO (pd);
+#endif
+
   /* Verify the sysinfo bits were copied in allocate_stack if needed.  */
 #ifdef NEED_DL_SYSINFO
   CHECK_THREAD_SYSINFO (pd);
