@@ -38,6 +38,44 @@ CFLAGS-.oS += -fcf-protection -mcet
 # Compile assembly codes with <cet.h> when CET is enabled.
 asm-CPPFLAGS += -fcf-protection -mcet -include cet.h
 
+ifeq ($(subdir),stdlib)
+# Check that GNU_PROPERTY_X86_FEATURE_1_SHSTK isn't set.
+tests-special += $(objpfx)tst-setcontext3-shstk.out
+
+# Check for error with -fcf-protection -mshstk on makecontext family
+# functions.
+tests-special += $(objpfx)tst-ucontext-1.out
+endif
+
+$(objpfx)tst-setcontext3-shstk.out: $(..)sysdeps/unix/sysv/linux/x86/tst-setcontext3-shstk.sh $(objpfx)tst-setcontext3
+	$(SHELL) $< $(common-objpfx)stdlib/ $(READELF) > $@; \
+	$(evaluate-test)
+
+$(objpfx)tst-ucontext-1.out: $(..)sysdeps/unix/sysv/linux/x86/tst-ucontext-1.sh \
+			     $(..)sysdeps/unix/sysv/linux/x86/tst-ucontext-1.c
+	$(SHELL) $< "$(CC)" "-D_ISOMAC $(+includes)" \
+		$(filter-out $<,$^)  > $@; \
+	$(evaluate-test)
+
+ifeq ($(subdir),nptl)
+CFLAGS-tst-context1.c += -fcf-protection=branch -mno-shstk -mibt
+endif
+
+ifeq ($(subdir),stdlib)
+CFLAGS-bug-getcontext.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-makecontext.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-makecontext2.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-makecontext3.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-makecontext-align.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-setcontext.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-setcontext2.c += -fcf-protection=branch -mno-shstk -mibt
+CFLAGS-tst-setcontext3.c += -fcf-protection=branch -mno-shstk -mibt
+endif
+
+ifeq ($(subdir),string)
+CFLAGS-tst-xbzero-opt.c += -fcf-protection=branch -mno-shstk -mibt
+endif
+
 ifeq ($(subdir),elf)
 ifeq (yes,$(build-shared))
 tests-special += $(objpfx)check-cet.out
