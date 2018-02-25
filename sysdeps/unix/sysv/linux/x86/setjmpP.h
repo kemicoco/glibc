@@ -22,8 +22,8 @@
 #include <bits/types/__sigset_t.h>
 
 /* The biggest signal number + 1.  As of kernel 4.14, x86 _NSIG is 64.
-   Define it to 513 to leave some rooms for future use.  */
-#define _JUMP_BUF_SIGSET_NSIG	513
+   Define it to 97 to leave some rooms for future use.  */
+#define _JUMP_BUF_SIGSET_NSIG	97
 /* Number of longs to hold all signals.  */
 #define _JUMP_BUF_SIGSET_NWORDS \
   ((_JUMP_BUF_SIGSET_NSIG - 1 + 7) / (8 * sizeof (unsigned long int)))
