@@ -292,7 +292,7 @@ LIBC_START_MAIN (int (*main) (int, char **, char ** MAIN_AUXVEC_DECL),
   struct pthread_unwind_buf unwind_buf;
 
   int not_first_call;
-  not_first_call = setjmp ((struct __jmp_buf_tag *) unwind_buf.cancel_jmp_buf);
+  not_first_call = __setjmp_cancel ((struct __jmp_buf_tag *) unwind_buf.cancel_jmp_buf);
   if (__glibc_likely (! not_first_call))
     {
       struct pthread *self = THREAD_SELF;

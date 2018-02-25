@@ -667,8 +667,9 @@ __pthread_cleanup_routine (struct __pthread_cleanup_frame *__frame)
     __pthread_unwind_buf_t __cancel_buf;				      \
     void (*__cancel_routine) (void *) = (routine);			      \
     void *__cancel_arg = (arg);						      \
-    int __not_first_call = __sigsetjmp ((struct __jmp_buf_tag *) (void *)     \
-					__cancel_buf.__cancel_jmp_buf, 0);    \
+    int __not_first_call						      \
+      = __sigsetjmp_cancel ((struct __jmp_buf_tag *) (void *)		      \
+			    __cancel_buf.__cancel_jmp_buf, 0);		      \
     if (__glibc_unlikely (__not_first_call))				      \
       {									      \
 	__cancel_routine (__cancel_arg);				      \
@@ -702,8 +703,9 @@ extern void __pthread_unregister_cancel (__pthread_unwind_buf_t *__buf)
     __pthread_unwind_buf_t __cancel_buf;				      \
     void (*__cancel_routine) (void *) = (routine);			      \
     void *__cancel_arg = (arg);						      \
-    int __not_first_call = __sigsetjmp ((struct __jmp_buf_tag *) (void *)     \
-					__cancel_buf.__cancel_jmp_buf, 0);    \
+    int __not_first_call						      \
+      = __sigsetjmp_cancel ((struct __jmp_buf_tag *) (void *)		      \
+			    __cancel_buf.__cancel_jmp_buf, 0);		      \
     if (__glibc_unlikely (__not_first_call))				      \
       {									      \
 	__cancel_routine (__cancel_arg);				      \
@@ -739,10 +741,7 @@ extern void __pthread_unwind_next (__pthread_unwind_buf_t *__buf)
      ;
 #endif
 
-/* Function used in the macros.  */
-struct __jmp_buf_tag;
-extern int __sigsetjmp (struct __jmp_buf_tag *__env, int __savemask) __THROWNL;
-
+#include <bits/setjmp-cancel.h>
 
 /* Mutex handling.  */
 

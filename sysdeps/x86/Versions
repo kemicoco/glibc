@@ -3,3 +3,18 @@ ld {
     __get_cpu_features;
   }
 }
+libc {
+  GLIBC_2.28 {
+   # New versions to avoid picking up old ones in libpthread.
+   longjmp;
+   siglongjmp;
+   __sigsetjmp;
+
+   # used to implement thread cancellation.
+   __sigsetjmp_cancel;
+  }
+  GLIBC_PRIVATE {
+   # used to implement thread cancellation.
+    __setjmp_cancel;
+  }
+}

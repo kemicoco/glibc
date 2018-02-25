@@ -25,13 +25,28 @@
 #define _SETJMP_H
 #include <bits/setjmp.h>
 
+/* If _setjmp is defined for __setjmp_cancel, call __sigsetjmp_cancel
+   instead of __sigsetjmp.
+ */
+#ifdef _setjmp
+# ifdef PIC
+#  define SIGSETJMP HIDDEN_JUMPTARGET (__sigsetjmp_cancel)
+# else
+#  define SIGSETJMP __sigsetjmp_cancel
+# endif
+#else
+# ifdef PIC
+#  define SIGSETJMP HIDDEN_JUMPTARGET (__sigsetjmp)
+# else
+#  define SIGSETJMP __sigsetjmp
+# endif
+#endif
+
 ENTRY (_setjmp)
 	/* Set up arguments, we only need to set the second arg.  */
 	xorl %esi, %esi
-#ifdef PIC
-	jmp HIDDEN_JUMPTARGET (__sigsetjmp)
-#else
-	jmp __sigsetjmp
-#endif
+	jmp SIGSETJMP
 END (_setjmp)
+#ifndef _setjmp
 libc_hidden_def (_setjmp)
+#endif

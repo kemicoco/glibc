@@ -416,6 +416,12 @@
 # endif
 #endif
 
+#if __GNUC_PREREQ (4, 1)
+# define __attribute_returns_twice__ __attribute__ ((__returns_twice__))
+#else
+# define __attribute_returns_twice__ /* Ignore.  */
+#endif
+
 #if __GNUC_PREREQ (8, 0)
 /* Describes a char array whose address can safely be passed as the first
    argument to strncpy and strncat, as the char array is not necessarily

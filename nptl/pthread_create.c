@@ -432,7 +432,7 @@ START_THREAD_DEFN
   unwind_buf.priv.data.cleanup = NULL;
 
   int not_first_call;
-  not_first_call = setjmp ((struct __jmp_buf_tag *) unwind_buf.cancel_jmp_buf);
+  not_first_call = __setjmp_cancel ((struct __jmp_buf_tag *) unwind_buf.cancel_jmp_buf);
   if (__glibc_likely (! not_first_call))
     {
       /* Store the new cleanup handler info.  */
