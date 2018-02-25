@@ -31,6 +31,9 @@ libc_hidden_proto (__sigsetjmp)
 extern __typeof (__sigsetjmp) __sigsetjmp attribute_hidden;
 # endif
 
+# include <setjmp-cancelP.h>
+# include <bits/setjmp-cancel.h>
+
 /* Check jmp_buf sizes, alignments and offsets.  */
 # include <stddef.h>
 # include <jmp_buf-macros.h>

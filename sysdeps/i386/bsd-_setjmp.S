@@ -53,4 +53,6 @@ ENTRY (_setjmp)
 	movl %eax, JB_SIZE(%edx) /* No signal mask set.  */
 	ret
 END (_setjmp)
+#ifndef _setjmp
 libc_hidden_def (_setjmp)
+#endif

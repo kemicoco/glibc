@@ -22,7 +22,7 @@ subdir	:= nptl
 
 include ../Makeconfig
 
-headers := pthread.h semaphore.h bits/semaphore.h
+headers := pthread.h semaphore.h bits/semaphore.h bits/setjmp-cancel.h
 
 extra-libs := libpthread
 extra-libs-others := $(extra-libs)

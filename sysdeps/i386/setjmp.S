@@ -25,6 +25,11 @@
 #define JMPBUF	PARMS
 #define SIGMSK	JMPBUF+4
 
+#if !defined __sigsetjmp && defined SHARED && !IS_IN (rtld)
+# define __sigsetjmp __redirect___sigsetjmp
+# define __redirect___sigsetjmp __redirect___sigsetjmp
+#endif
+
 ENTRY (__sigsetjmp)
 
 	movl JMPBUF(%esp), %eax
@@ -55,4 +60,13 @@ ENTRY (__sigsetjmp)
 	jmp __sigjmp_save
 #endif
 END (__sigsetjmp)
-hidden_def (__sigsetjmp)
+#ifdef __redirect___sigsetjmp
+# undef __sigsetjmp
+
+	.globl __GI___sigsetjmp
+	.hidden __GI___sigsetjmp
+	__GI___sigsetjmp = __redirect___sigsetjmp
+
+# include <shlib-compat.h>
+versioned_symbol (libc, __redirect___sigsetjmp, __sigsetjmp, GLIBC_2_28);
+#endif
