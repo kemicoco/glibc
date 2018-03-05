@@ -105,6 +105,7 @@ asm						\
    ".text\n"					\
    "	.align 16\n"				\
    "__" #name ":\n"				\
+   "	" _CET_ENDBR "\n"			\
    "	movl $" #syscall ", %eax\n"		\
    "	int  $0x80"				\
    );
@@ -122,6 +123,7 @@ asm						\
    ".text\n"					\
    "	.align 8\n"				\
    "__" #name ":\n"				\
+   "	" _CET_ENDBR "\n"			\
    "	popl %eax\n"				\
    "	movl $" #syscall ", %eax\n"		\
    "	int  $0x80"				\

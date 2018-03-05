@@ -119,6 +119,7 @@ asm									\
    ".LSTART_" #name ":\n"						\
    "	.type __" #name ",@function\n"					\
    "__" #name ":\n"							\
+   "	" _CET_ENDBR "\n"						\
    "	movq $" #syscall ", %rax\n"					\
    "	syscall\n"							\
    ".LEND_" #name ":\n"							\

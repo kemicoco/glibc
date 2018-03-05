@@ -72,6 +72,20 @@
 
 #define atom_text_section .section ".text.atom", "ax"
 
+#else /* __ASSEMBLER__ */
+
+#ifndef _CET_ENDBR
+# ifdef __IBT__
+#  ifdef __x86_64__
+#   define _CET_ENDBR "endbr64"
+#  else
+#   define _CET_ENDBR "endbr32"
+#  endif
+# else
+#  define _CET_ENDBR
+# endif
+#endif
+
 #endif	/* __ASSEMBLER__ */
 
 #endif	/* _X86_SYSDEP_H */
