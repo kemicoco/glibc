@@ -32,7 +32,7 @@ __exit_thread (void)
      not work, the thread will simply spin rather than running off the end
      of the caller and doing unexpectedly strange things.  */
 
-#ifdef __SHSTK__
+#if 0
   /* Call ARCH_CET_CONTROL_EXIT if CET is in use.  */
   unsigned int feature_1 = THREAD_GETMEM (THREAD_SELF, header.feature_1);
   if ((feature_1 & 0x3) != 0)
