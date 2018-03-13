@@ -18,6 +18,7 @@
    <http://www.gnu.org/licenses/>.  */
 
 #include <sysdep.h>
+#include <bits/prctl.h>
 
 #include "ucontext_i.h"
 
@@ -54,6 +55,27 @@ ENTRY(__swapcontext)
 	movq	%rcx, oRIP(%rdi)
 	leaq	8(%rsp), %rcx		/* Exclude the return address.  */
 	movq	%rcx, oRSP(%rdi)
+
+#if defined __CET__ && (__CET__ & 2) != 0
+	/* Check if shadow stack is enabled.  */
+	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
+	jz	L(no_shstk_get)
+
+	/* Get the current shadow stack pointer.  */
+	rdsspq	%rax
+	/* NB: Save the caller's shadow stack so that we can jump back
+	       to the caller directly.  */
+	addq	$8, %rax
+	movq	%rax, oSSP(%rdi)
+	/* Save the caller's return address.  */
+	movq	(%rax), %rcx
+	movq	%rcx, (oSSP + 8)(%rdi)
+	xorl	%edx, %edx
+	movq	%rdx, (oSSP + 16)(%rdi)
+	movq	%rdx, (oSSP + 24)(%rdi)
+
+L(no_shstk_get):
+#endif
 
 	/* We have separate floating-point register content memory on the
 	   stack.  We use the __fpregs_mem block in the context.  Set the
@@ -99,6 +121,41 @@ ENTRY(__swapcontext)
 	movq	oR14(%rdx), %r14
 	movq	oR15(%rdx), %r15
 
+#if defined __CET__ && (__CET__ & 2) != 0
+	/* Check if shadow stack is enabled.  */
+	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
+	jz	L(no_shstk_set)
+
+	/* Restore shadow stack and update return address.  */
+	lea	oSSP(%rdx), %RSI_LP
+	movl	$ARCH_CET_PUSH_SHSTK, %edi
+	movl	$__NR_arch_prctl, %eax
+	syscall
+	testq	%rax, %rax
+	jne	L(hlt)		/* This should never happen.  */
+
+L(no_shstk_set):
+	/* Setup registers used for passing args.  */
+	movq	oRDI(%rdx), %rdi
+	movq	oRSI(%rdx), %rsi
+	movq	oRCX(%rdx), %rcx
+	movq	oR8(%rdx), %r8
+	movq	oR9(%rdx), %r9
+
+	/* Get the return address set with getcontext.  */
+	movq	oRIP(%rdx), %r10
+
+	/* Setup finally %rdx.  */
+	movq	oRDX(%rdx), %rdx
+
+	/* Clear rax to indicate success.  */
+	xorl	%eax, %eax
+	/* Jump to new context directly.  */
+	notrack jmp *%r10
+
+L(hlt):
+	hlt
+#else
 	/* The following ret should return to the address set with
 	getcontext.  Therefore push the address on the stack.  */
 	movq	oRIP(%rdx), %rcx
@@ -117,6 +174,7 @@ ENTRY(__swapcontext)
 	/* Clear rax to indicate success.  */
 	xorl	%eax, %eax
 	ret
+#endif
 PSEUDO_END(__swapcontext)
 
 weak_alias (__swapcontext, swapcontext)

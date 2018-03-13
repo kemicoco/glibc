@@ -21,6 +21,14 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <ucontext.h>
+#if defined __CET__ && (__CET__ & 2) != 0
+# include <stdio.h>
+# include <pthread.h>
+# include <sys/syscall.h>
+# include <sys/prctl.h>
+# include <x86intrin.h>
+# include <libc-pointer-arith.h>
+#endif
 
 #include "ucontext_i.h"
 
@@ -76,6 +84,43 @@ __makecontext (ucontext_t *ucp, void (*func) (void), int argc, ...)
   /* Setup stack.  */
   sp[0] = (uintptr_t) &__start_context;
   sp[idx_uc_link] = (uintptr_t) ucp->uc_link;
+
+#if defined __CET__ && (__CET__ & 2) != 0
+  struct pthread *self = THREAD_SELF;
+  unsigned int feature_1 = THREAD_GETMEM (self, header.feature_1);
+  /* NB: We must check feature_1 before accessing __ssp since caller
+	 may be compiled against ucontext_t without __ssp.  */
+  if ((feature_1 & (1 << 1)) != 0)
+    {
+      /* Shadow stack is enabled.  We need to allocate a new shadow
+         stack.  Assuming each stack frame takes 8 byte return address
+	 + 32 byte local stack.  */
+# define SIZE_PER_STACK_FRAME 32
+      unsigned long ssp_size = (((uintptr_t) sp
+				 - (uintptr_t) ucp->uc_stack.ss_sp)
+				/ ((8 + SIZE_PER_STACK_FRAME) / 8));
+      /* Align shadow stack to 8 bytes.  */
+      ssp_size = ALIGN_UP (ssp_size, 8);
+
+      /* Allocate a new shadow stack with return address pointing to
+	 __start_context.  */
+      unsigned long long shstk = ssp_size;
+      INTERNAL_SYSCALL_DECL (err);
+      int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+				  ARCH_CET_ALLOC_SHSTK, &shstk);
+      if (res)
+	__libc_fatal ("makecontext: failed to allocate shadow stack");
+
+      /* Tell setcontext and swapcontext to restore shadow stack pointer
+	 to the top of the new shadow stack.  NB: To free the new shadow
+	 stack, caller of makecontext must call ARCH_CET_FREE_SHSTK with
+	 ucp->__ssp[2] and ucp->__ssp[3].  */
+      ucp->__ssp[0] = shstk + ssp_size - 8;
+      ucp->__ssp[1] = (uintptr_t) &__start_context;
+      ucp->__ssp[2] = shstk;
+      ucp->__ssp[3] = ssp_size;
+    }
+#endif
 
   va_start (ap, argc);
   /* Handle arguments.

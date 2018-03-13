@@ -18,6 +18,7 @@
    <http://www.gnu.org/licenses/>.  */
 
 #include <sysdep.h>
+#include <bits/prctl.h>
 
 #include "ucontext_i.h"
 
@@ -79,6 +80,40 @@ ENTRY(__setcontext)
 	movq	oR14(%rdx), %r14
 	movq	oR15(%rdx), %r15
 
+#if defined __CET__ && (__CET__ & 2) != 0
+	/* Check if shadow stack is enabled.  */
+	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
+	jz	L(no_shstk)
+
+	/* Restore shadow stack and update return address.  */
+	lea	oSSP(%rdx), %RSI_LP
+	movl	$ARCH_CET_PUSH_SHSTK, %edi
+	movl	$__NR_arch_prctl, %eax
+	syscall
+	testq	%rax, %rax
+	jne	L(hlt)		/* This should never happen.  */
+
+L(no_shstk):
+	movq	oRSI(%rdx), %rsi
+	movq	oRDI(%rdx), %rdi
+	movq	oRCX(%rdx), %rcx
+	movq	oR8(%rdx), %r8
+	movq	oR9(%rdx), %r9
+
+	/* Get the return address set with getcontext.  */
+	movq	oRIP(%rdx), %r10
+
+	/* Setup finally %rdx.  */
+	movq	oRDX(%rdx), %rdx
+
+	/* Clear rax to indicate success.  */
+	xorl	%eax, %eax
+	/* Jump to new context directly.  */
+	notrack jmp *%r10
+
+L(hlt):
+	hlt
+#else
 	/* The following ret should return to the address set with
 	getcontext.  Therefore push the address on the stack.  */
 	movq	oRIP(%rdx), %rcx
@@ -100,6 +135,7 @@ ENTRY(__setcontext)
 	/* Clear rax to indicate success.  */
 	xorl	%eax, %eax
 	ret
+#endif
 PSEUDO_END(__setcontext)
 
 weak_alias (__setcontext, setcontext)
