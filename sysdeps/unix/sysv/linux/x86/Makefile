@@ -8,6 +8,7 @@ abi-64-condition := defined __x86_64__ && defined __LP64__
 abi-x32-condition := defined __x86_64__ && defined __ILP32__
 
 ifeq ($(subdir),misc)
+sysdep_routines += prlimit64
 sysdep_headers += sys/elf.h sys/perm.h sys/reg.h sys/vm86.h sys/debugreg.h sys/io.h
 endif
 
