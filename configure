@@ -788,6 +788,7 @@ enable_nscd
 enable_pt_chown
 enable_tunables
 enable_mathvec
+enable_cpu_rt
 with_cpu
 '
       ac_precious_vars='build_alias
@@ -1461,6 +1462,8 @@ Optional Features:
                           'no' and 'valstring'
   --enable-mathvec        Enable building and installing mathvec [default
                           depends on architecture]
+  --enable-cpu-rt         Enable building and installing CPU run-time library
+                          [default depends on architecture]
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -3738,6 +3741,14 @@ if test "${enable_mathvec+set}" = set; then :
   enableval=$enable_mathvec; build_mathvec=$enableval
 else
   build_mathvec=notset
+fi
+
+
+# Check whether --enable-cpu-rt was given.
+if test "${enable_cpu_rt+set}" = set; then :
+  enableval=$enable_cpu_rt; build_cpu_rt=$enableval
+else
+  build_cpu_rt=notset
 fi
 
 
@@ -6677,6 +6688,12 @@ if test x"$build_mathvec" = xnotset; then
 fi
 config_vars="$config_vars
 build-mathvec = $build_mathvec"
+
+if test x"$build_cpu_rt" = xnotset; then
+  build_cpu_rt=no
+fi
+config_vars="$config_vars
+build-cpu-rt = $build_cpu_rt"
 
 
 
