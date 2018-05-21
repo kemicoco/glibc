@@ -61,15 +61,12 @@ ENTRY(__getcontext)
 	/* Get the current shadow stack pointer.  */
 	rdsspq	%rax
 	/* NB: Save the caller's shadow stack so that we can jump back
-	       to the caller directly.  */
+	   to the caller directly.  */
 	addq	$8, %rax
 	movq	%rax, oSSP(%rdi)
-	/* Save the caller's return address.  */
-	movq	(%rax), %rcx
-	movq	%rcx, (oSSP + 8)(%rdi)
 	xorl	%edx, %edx
+	movq	%rdx, (oSSP + 8)(%rdi)
 	movq	%rdx, (oSSP + 16)(%rdi)
-	movq	%rdx, (oSSP + 24)(%rdi)
 
 L(no_shstk):
 #endif
