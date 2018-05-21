@@ -56,27 +56,6 @@ ENTRY(__swapcontext)
 	leaq	8(%rsp), %rcx		/* Exclude the return address.  */
 	movq	%rcx, oRSP(%rdi)
 
-#if defined __CET__ && (__CET__ & 2) != 0
-	/* Check if shadow stack is enabled.  */
-	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
-	jz	L(no_shstk_get)
-
-	/* Get the current shadow stack pointer.  */
-	rdsspq	%rax
-	/* NB: Save the caller's shadow stack so that we can jump back
-	       to the caller directly.  */
-	addq	$8, %rax
-	movq	%rax, oSSP(%rdi)
-	/* Save the caller's return address.  */
-	movq	(%rax), %rcx
-	movq	%rcx, (oSSP + 8)(%rdi)
-	xorl	%edx, %edx
-	movq	%rdx, (oSSP + 16)(%rdi)
-	movq	%rdx, (oSSP + 24)(%rdi)
-
-L(no_shstk_get):
-#endif
-
 	/* We have separate floating-point register content memory on the
 	   stack.  We use the __fpregs_mem block in the context.  Set the
 	   links up correctly.  */
@@ -89,6 +68,7 @@ L(no_shstk_get):
 
 	/* The syscall destroys some registers, save them.  */
 	movq	%rsi, %r12
+	movq	%rdi, %r9
 
 	/* Save the current signal mask and install the new one with
 	   rt_sigprocmask (SIG_BLOCK, newset, oldset,_NSIG/8).  */
@@ -124,17 +104,50 @@ L(no_shstk_get):
 #if defined __CET__ && (__CET__ & 2) != 0
 	/* Check if shadow stack is enabled.  */
 	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
-	jz	L(no_shstk_set)
+	jz	L(no_shstk)
 
-	/* Restore shadow stack and update return address.  */
-	lea	oSSP(%rdx), %RSI_LP
-	movl	$ARCH_CET_PUSH_SHSTK, %edi
+	/* Get the current shadow stack pointer.  */
+	rdsspq	%r8
+
+	/* NB: Shadow stack slots contain restore tokens pushed by
+	   rstorssp and rstorssp or return addresses pushed by call.
+	   Since return address and restore token are disjoint, we
+	   can check restore token at __ssp[0] - 8.  Context from
+	   getcontext doesn't have a restore token on shadow stack
+	   and its __ssp[0] points to the shadow stack of getcontext's
+	   caller.  */
+	movq	oSSP(%rdx), %rsi
+	movq	-8(%rsi), %rax
+	andq	$-8, %rax
+	cmpq	%rsi, %rax
+	jne	L(restore_shadow_stack)
+
+	/* Restore the new shadow stack.  */
+	rstorssp -8(%rsi)
+
+	/* Save restore token on old shadow stack.  */
+	saveprevssp
+	jmp	L(skip_restore_shadow_stack)
+
+L(restore_shadow_stack):
+	/* Save the caller's shadow stack so that we can jump back to
+	   the caller directly.  */
+	addq  $8, %r8
+	/* Load the shadow stack pointer into RSI.  */
+	movq	oSSP(%rdx), %rsi
+	movl	$ARCH_CET_RSTOR_SHSTK, %edi
 	movl	$__NR_arch_prctl, %eax
 	syscall
 	testq	%rax, %rax
 	jne	L(hlt)		/* This should never happen.  */
 
-L(no_shstk_set):
+L(skip_restore_shadow_stack):
+	/* Save the shadow stack pointer in __ssp[0].  */
+	movq	%r8, oSSP(%r9)
+	xorl	%eax, %eax
+	movq	%rax, (oSSP + 8)(%r9)
+	movq	%rax, (oSSP + 16)(%r9)
+
 	/* Setup registers used for passing args.  */
 	movq	oRDI(%rdx), %rdi
 	movq	oRSI(%rdx), %rsi
@@ -148,14 +161,27 @@ L(no_shstk_set):
 	/* Setup finally %rdx.  */
 	movq	oRDX(%rdx), %rdx
 
-	/* Clear rax to indicate success.  */
-	xorl	%eax, %eax
-	/* Jump to new context directly.  */
-	notrack jmp *%r10
+	/* Check if return address is valid for the case when setcontext
+	   is invoked from __start_context with linked context.  */
+	rdsspq	%rax
+	cmpq	(%rax), %r10
+	/* Clear rax to indicate success.  NB: Don't use xorl to keep
+	   EFLAGS for jne.  */
+	movl    $0, %eax
+	jne	L(jmp)
+	/* Return to the new context if return address valid.  */
+	pushq	%r10
+	ret
+
+L(jmp):
+	/* Jump to the new context directly.  */
+	jmp	*%r10
 
 L(hlt):
 	hlt
-#else
+
+L(no_shstk):
+#endif
 	/* The following ret should return to the address set with
 	getcontext.  Therefore push the address on the stack.  */
 	movq	oRIP(%rdx), %rcx
@@ -174,7 +200,6 @@ L(hlt):
 	/* Clear rax to indicate success.  */
 	xorl	%eax, %eax
 	ret
-#endif
 PSEUDO_END(__swapcontext)
 
 weak_alias (__swapcontext, swapcontext)

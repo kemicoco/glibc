@@ -85,15 +85,42 @@ ENTRY(__setcontext)
 	testl	$(1 << 1), %fs:FEATURE_1_OFFSET
 	jz	L(no_shstk)
 
-	/* Restore shadow stack and update return address.  */
-	lea	oSSP(%rdx), %RSI_LP
-	movl	$ARCH_CET_PUSH_SHSTK, %edi
+	/* NB: Shadow stack slots contain restore tokens pushed by
+	   rstorssp and rstorssp or return addresses pushed by call.
+	   Since return address and restore token are disjoint, we
+	   can check restore token at __ssp[0] - 8.  Context from
+	   getcontext doesn't have a restore token on shadow stack
+	   and its __ssp[0] points to the shadow stack of getcontext's
+	   caller.  */
+	movq	oSSP(%rdx), %rsi
+	movq	-8(%rsi), %rax
+	andq	$-8, %rax
+	cmpq	%rsi, %rax
+	jne	L(restore_shadow_stack)
+
+	/* Pop return address from the shadow stack since setcontext
+	   will not return.   */
+	movq	$1, %rax
+	incsspq	%rax
+
+	/* Restore the new shadow stack.  */
+	rstorssp -8(%rsi)
+
+	/* Save restore token on the old shadow stack.  NB: This restore
+	   token may be checked later in setcontext or swapcontext.  */
+	saveprevssp
+	jmp	L(skip_restore_shadow_stack)
+
+L(restore_shadow_stack):
+	/* Load the shadow stack pointer into RSI.  */
+	movq	oSSP(%rdx), %rsi
+	movl	$ARCH_CET_RSTOR_SHSTK, %edi
 	movl	$__NR_arch_prctl, %eax
 	syscall
 	testq	%rax, %rax
 	jne	L(hlt)		/* This should never happen.  */
 
-L(no_shstk):
+L(skip_restore_shadow_stack):
 	movq	oRSI(%rdx), %rsi
 	movq	oRDI(%rdx), %rdi
 	movq	oRCX(%rdx), %rcx
@@ -106,14 +133,27 @@ L(no_shstk):
 	/* Setup finally %rdx.  */
 	movq	oRDX(%rdx), %rdx
 
-	/* Clear rax to indicate success.  */
-	xorl	%eax, %eax
-	/* Jump to new context directly.  */
-	notrack jmp *%r10
+	/* Check if return address is valid for the case when setcontext
+	   is invoked from __start_context with linked context.  */
+	rdsspq	%rax
+	cmpq	(%rax), %r10
+	/* Clear RAX to indicate success.  NB: Don't use xorl to keep
+	   EFLAGS for jne.  */
+	movl    $0, %eax
+	jne	L(jmp)
+	/* Return to the new context if return address valid.  */
+	pushq	%r10
+	ret
+
+L(jmp):
+	/* Jump to the new context directly.  */
+	jmp	*%r10
 
 L(hlt):
 	hlt
-#else
+
+L(no_shstk):
+#endif
 	/* The following ret should return to the address set with
 	getcontext.  Therefore push the address on the stack.  */
 	movq	oRIP(%rdx), %rcx
@@ -135,7 +175,6 @@ L(hlt):
 	/* Clear rax to indicate success.  */
 	xorl	%eax, %eax
 	ret
-#endif
 PSEUDO_END(__setcontext)
 
 weak_alias (__setcontext, setcontext)

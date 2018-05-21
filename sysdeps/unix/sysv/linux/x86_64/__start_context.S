@@ -18,6 +18,77 @@
 
 #include <sysdep.h>
 
+#if defined __CET__ && (__CET__ & 2) != 0
+# include <bits/prctl.h>
+# include "ucontext_i.h"
+
+/* Use CALL to push __start_context onto the new stack as well as the new
+   shadow stack.  RDI points to ucontext:
+   Incoming:
+     __ssp[0]: The original caller's shadow stack pointer.
+     __ssp[1]: The size of the new shadow stack.
+     __ssp[2]: The size of the new shadow stack.
+   Outgoing:
+     __ssp[0]: The new shadow stack pointer.
+     __ssp[1]: The base address of the new shadow stack.
+     __ssp[2]: The size of the new shadow stack.
+ */
+
+ENTRY(__push___start_context)
+	/* Save the pointer to ucontext.  */
+	movq	%rdi, %r9
+	/* Get the original shadow stack pointer.  */
+	rdsspq	%r8
+	/* Save the origin stack pointer.  */
+	movq	%rsp, %rdx
+	/* Load the top of the new stack into RSI.  */
+	movq 	oRSP(%rdi), %rsi
+	/* Add 8 bytes to RSI since CALL will push the 8-byte return
+	   address onto stack.  */
+	leaq	8(%rsi), %rsp
+	/* Allocate and switch to the new shadow stack.  The size of the
+	   new shadow stack is passed in __ssp[1].  */
+	lea	(oSSP + 8)(%rdi), %RSI_LP
+	movl	$ARCH_CET_SWITCH_SHSTK, %edi
+	movl	$__NR_arch_prctl, %eax
+	/* The new shadow stack base is returned in __ssp[1].  */
+	syscall
+	testq	%rax, %rax
+	jne	L(hlt)		/* This should never happen.  */
+
+	/* Get the size of the new shadow stack.  */
+	movq	8(%rsi), %rdi
+
+	/* Get the base address of the new shadow stack.  */
+	movq	(%rsi), %rsi
+
+	/* Restore the shadow stack and save the restore token on the
+	   current shadow stack.  */
+	rstorssp -8(%rsi, %rdi)
+	saveprevssp
+
+	/* Push the address of "jmp __start_context" onto the new stack
+	   as well as the new shadow stack.  */
+	call	1f
+	jmp	__start_context
+1:
+
+	/* Get the new shadow stack pointer.  */
+	rdsspq	%rdi
+
+	/* Restore the origin shadow stack.  */
+	rstorssp -8(%r8)
+	saveprevssp
+
+	/* Store the new shadow stack pointer in __ssp[0].  */
+	movq	%rdi, oSSP(%r9)
+
+	/* Restore the origin stack.  */
+	mov	%rdx, %rsp
+	ret
+END(__push___start_context)
+#endif
+
 /* This is the helper code which gets called if a function which is
    registered with 'makecontext' returns.  In this case we have to
    install the context listed in the uc_link element of the context
@@ -45,5 +116,6 @@ ENTRY(__start_context)
 	call	HIDDEN_JUMPTARGET(exit)
 	/* The 'exit' call should never return.  In case it does cause
 	   the process to terminate.  */
+L(hlt):
 	hlt
 END(__start_context)
