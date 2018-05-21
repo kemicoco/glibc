@@ -76,6 +76,7 @@
 #define bit_cpu_AVX512VL	(1u << 31)
 #define bit_cpu_IBT		(1u << 20)
 #define bit_cpu_SHSTK		(1u << 7)
+#define bit_cpu_FSRM		(1 << 4)
 
 /* XCR0 Feature flags.  */
 #define bit_XMM_state		(1 << 1)
@@ -212,6 +213,7 @@ extern void _dl_setup_cet (const ElfW(Phdr) *, size_t, const ElfW(Addr))
 # define index_cpu_POPCNT	COMMON_CPUID_INDEX_1
 # define index_cpu_IBT		COMMON_CPUID_INDEX_7
 # define index_cpu_SHSTK	COMMON_CPUID_INDEX_7
+# define index_cpu_FSRM		COMMON_CPUID_INDEX_7
 
 # define reg_CX8		edx
 # define reg_CMOV		edx
@@ -243,6 +245,7 @@ extern void _dl_setup_cet (const ElfW(Phdr) *, size_t, const ElfW(Addr))
 # define reg_POPCNT		ecx
 # define reg_IBT		edx
 # define reg_SHSTK		ecx
+# define reg_FSRM		edx
 
 # define index_arch_Fast_Rep_String	FEATURE_INDEX_1
 # define index_arch_Fast_Copy_Backward	FEATURE_INDEX_1
