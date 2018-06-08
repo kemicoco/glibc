@@ -36,13 +36,67 @@ init_cpu_features (struct cpu_features *cpu_features)
   int res = INTERNAL_SYSCALL (arch_prctl, err, 2, ARCH_CET_STATUS,
 			      cet_status);
 
+  /* Update dl_x86_feature_1.  */
   if (res == 0)
     {
-      /* Update dl_x86_feature_1.  */
       GL(dl_x86_feature_1)[0] = cet_status[0];
       GL(dl_x86_feature_1)[1] = cet_status[1];
     }
 
   x86_init_cpu_features (cpu_features);
+
+  if (res == 0)
+    {
+# ifndef SHARED
+      /* Check if IBT and SHSTK are enabled by kernel.  */
+      if ((GL(dl_x86_feature_1)[0] & GNU_PROPERTY_X86_FEATURE_1_IBT)
+	  || (GL(dl_x86_feature_1)[0] & GNU_PROPERTY_X86_FEATURE_1_SHSTK))
+	{
+	  /* Disable IBT and/or SHSTK if they are enabled by kernel, but
+	     disabled by environment variable:
+
+	     GLIBC_TUNABLES=glibc.tune.hwcaps=-IBT,-SHSTK
+	   */
+	  unsigned int cet_feature = 0;
+	  if (!HAS_CPU_FEATURE (IBT))
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+	  if (!HAS_CPU_FEATURE (SHSTK))
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+
+	  if (cet_feature)
+	    {
+	      INTERNAL_SYSCALL_DECL (err);
+	      int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+					  ARCH_CET_DISABLE,
+					  cet_feature);
+
+	      /* Clear the disabled bits in dl_x86_feature_1.  */
+	      if (res == 0)
+		GL(dl_x86_feature_1)[0] &= ~cet_feature;
+	    }
+
+	  /* Lock CET if IBT or SHSTK is enabled in executable.  Don't
+	     lock CET if SHSTK is enabled permissively.  */
+	  if (((cet_status[1] >> ARCH_CET_EXEC_MAX)
+	       & ((1 << ARCH_CET_EXEC_MAX) - 1))
+	       != ARCH_CET_EXEC_PERMISSIVE)
+	      {
+		INTERNAL_SYSCALL_DECL (err);
+		INTERNAL_SYSCALL (arch_prctl, err, 2, ARCH_CET_LOCK, 0);
+	      }
+	}
+# endif
+    }
 }
+
+# ifndef SHARED
+static inline void
+x86_setup_tls (void)
+{
+  __libc_setup_tls ();
+  THREAD_SETMEM (THREAD_SELF, header.feature_1, GL(dl_x86_feature_1)[0]);
+}
+
+#  define ARCH_SETUP_TLS() x86_setup_tls ()
+# endif
 #endif

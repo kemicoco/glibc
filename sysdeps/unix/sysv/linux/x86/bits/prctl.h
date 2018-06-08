@@ -57,11 +57,13 @@
    0: Enable CET features based on ELF property note.
    1: Always disable CET features.
    2: Always enable CET features.
+   3: Enable CET features permissively.
  */
 # define ARCH_CET_EXEC_ELF_PROPERTY	0
 # define ARCH_CET_EXEC_ALWAYS_OFF	1
 # define ARCH_CET_EXEC_ALWAYS_ON	2
-# define ARCH_CET_EXEC_MAX		ARCH_CET_EXEC_ALWAYS_ON
+# define ARCH_CET_EXEC_PERMISSIVE	3
+# define ARCH_CET_EXEC_MAX		ARCH_CET_EXEC_PERMISSIVE
 #endif /* ARCH_CET_STATUS */
 
 #endif  /* bits/prctl.h */

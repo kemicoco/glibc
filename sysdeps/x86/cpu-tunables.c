@@ -334,4 +334,6 @@ TUNABLE_CALLBACK (set_hwcaps) (tunable_val_t *valp)
     }
   while (*p != '\0');
 }
+
+# include <cet-tunables.c>
 #endif

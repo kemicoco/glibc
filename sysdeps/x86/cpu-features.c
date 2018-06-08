@@ -28,6 +28,12 @@
 
 extern void TUNABLE_CALLBACK (set_hwcaps) (tunable_val_t *)
   attribute_hidden;
+# ifdef __CET__
+extern void TUNABLE_CALLBACK (set_x86_ibt) (tunable_val_t *)
+  attribute_hidden;
+extern void TUNABLE_CALLBACK (set_x86_shstk) (tunable_val_t *)
+  attribute_hidden;
+# endif
 #endif
 
 static void
@@ -380,6 +386,12 @@ no_cpuid:
 
 #if HAVE_TUNABLES
   TUNABLE_GET (hwcaps, tunable_val_t *, TUNABLE_CALLBACK (set_hwcaps));
+# ifdef __CET__
+  TUNABLE_GET (x86_ibt, tunable_val_t *,
+	       TUNABLE_CALLBACK (set_x86_ibt));
+  TUNABLE_GET (x86_shstk, tunable_val_t *,
+	       TUNABLE_CALLBACK (set_x86_shstk));
+# endif
   cpu_features->non_temporal_threshold
     = TUNABLE_GET (x86_non_temporal_threshold, long int, NULL);
   cpu_features->data_cache_size
