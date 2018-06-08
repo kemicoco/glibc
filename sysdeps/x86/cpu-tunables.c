@@ -219,6 +219,13 @@ TUNABLE_CALLBACK (set_hwcaps) (tunable_val_t *valp)
 	  CHECK_GLIBC_IFUNC_ARCH_BOTH (n, cpu_features, Slow_BSF,
 				       disable, 8);
 	  break;
+	case 9:
+	    {
+	      CHECK_GLIBC_IFUNC_ARCH_NEED_CPU_BOTH (n, cpu_features,
+						    Force_IBT, IBT,
+						    disable, 9);
+	    }
+	  break;
 	case 10:
 	  if (disable)
 	    {
@@ -243,6 +250,9 @@ TUNABLE_CALLBACK (set_hwcaps) (tunable_val_t *valp)
 						disable, 11);
 	  CHECK_GLIBC_IFUNC_ARCH_BOTH (n, cpu_features, Prefer_FSRM,
 				       disable, 11);
+	  CHECK_GLIBC_IFUNC_ARCH_NEED_CPU_BOTH (n, cpu_features,
+						Force_SHSTK, SHSTK,
+						disable, 11);
 	  break;
 	case 13:
 	  if (disable)
