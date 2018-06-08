@@ -41,6 +41,8 @@
 #define bit_arch_MathVec_Prefer_No_AVX512	(1 << 21)
 #define bit_arch_XSAVEC_Usable			(1 << 22)
 #define bit_arch_Prefer_FSRM			(1 << 23)
+#define bit_arch_Force_IBT			(1 << 24)
+#define bit_arch_Force_SHSTK			(1 << 25)
 
 /* CPUID Feature flags.  */
 
@@ -271,6 +273,8 @@ extern void _dl_setup_cet (const ElfW(Phdr) *, size_t, const ElfW(Addr))
 # define index_arch_MathVec_Prefer_No_AVX512 FEATURE_INDEX_1
 # define index_arch_XSAVEC_Usable	FEATURE_INDEX_1
 # define index_arch_Prefer_FSRM		FEATURE_INDEX_1
+# define index_arch_Force_IBT		FEATURE_INDEX_1
+# define index_arch_Force_SHSTK		FEATURE_INDEX_1
 
 #endif	/* !__ASSEMBLER__ */
 
