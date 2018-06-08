@@ -87,10 +87,12 @@ dl_cet_check (struct link_map *m, const char *program)
 {
   /* Check if IBT should be always on.  */
   bool ibt_always_on
-    = (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_IBT) != 0;
+    = (HAS_ARCH_FEATURE (Force_IBT)
+       || (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_IBT) != 0);
   /* Check if SHSTK  should be always on.  */
   bool shstk_always_on
-    = (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_SHSTK) != 0;
+    = (HAS_ARCH_FEATURE (Force_SHSTK)
+       || (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_SHSTK) != 0);
 
   /* No legacy object check if both IBT and SHSTK are always on.  */
   if (ibt_always_on && shstk_always_on)
