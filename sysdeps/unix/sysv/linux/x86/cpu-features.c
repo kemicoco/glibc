@@ -41,6 +41,36 @@ init_cpu_features (struct cpu_features *cpu_features)
       /* Update dl_x86_feature_1.  */
       GL(dl_x86_feature_1)[0] = cet_status[0];
       GL(dl_x86_feature_1)[1] = cet_status[1];
+
+# ifndef SHARED
+      /* Check if IBT and SHSTK are enabled by kernel.  */
+      if ((GL(dl_x86_feature_1)[0] & GNU_PROPERTY_X86_FEATURE_1_IBT)
+	  || (GL(dl_x86_feature_1)[0] & GNU_PROPERTY_X86_FEATURE_1_SHSTK))
+	{
+	  /* Disable IBT and/or SHSTK if they are enabled by kernel, but
+	     disabled by environment variable:
+
+	     GLIBC_TUNABLES=glibc.tune.hwcaps=-IBT,-SHSTK
+	     */
+	  unsigned int cet_feature = 0;
+	  if (!HAS_CPU_FEATURE (IBT))
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+	  if (!HAS_CPU_FEATURE (SHSTK))
+	    cet_feature |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+
+	  if (cet_feature)
+	    {
+	      INTERNAL_SYSCALL_DECL (err);
+	      int res = INTERNAL_SYSCALL (arch_prctl, err, 2,
+					  ARCH_CET_DISABLE,
+					  cet_feature);
+
+	      /* Clear the disabled bits in dl_x86_feature_1.  */
+	      if (res == 0)
+		 GL(dl_x86_feature_1)[0] &= ~cet_feature;
+	    }
+	}
+# endif
     }
 
   x86_init_cpu_features (cpu_features);
