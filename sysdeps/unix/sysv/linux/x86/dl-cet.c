@@ -86,17 +86,9 @@ static void
 dl_cet_check (struct link_map *m, const char *program)
 {
   /* Check if IBT should be always on.  */
-  bool ibt_always_on
-    = (HAS_ARCH_FEATURE (Force_IBT)
-       || (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_IBT) != 0);
+  bool force_ibt = HAS_ARCH_FEATURE (Force_IBT);
   /* Check if SHSTK  should be always on.  */
-  bool shstk_always_on
-    = (HAS_ARCH_FEATURE (Force_SHSTK)
-       || (GL(dl_x86_feature_1)[1] & GNU_PROPERTY_X86_FEATURE_1_SHSTK) != 0);
-
-  /* No legacy object check if both IBT and SHSTK are always on.  */
-  if (ibt_always_on && shstk_always_on)
-    return;
+  bool force_shstk = HAS_ARCH_FEATURE (Force_SHSTK);
 
   /* Check if IBT is enabled by kernel.  */
   bool ibt_enabled
@@ -120,10 +112,10 @@ dl_cet_check (struct link_map *m, const char *program)
 	     GLIBC_TUNABLES=glibc.tune.hwcaps=-IBT,-SHSTK
 	   */
 	  enable_ibt &= (HAS_CPU_FEATURE (IBT)
-			 && (ibt_always_on
+			 && (force_ibt
 			     || (m->l_cet & lc_ibt) != 0));
 	  enable_shstk &= (HAS_CPU_FEATURE (SHSTK)
-			   && (shstk_always_on
+			   && (force_shstk
 			       || (m->l_cet & lc_shstk) != 0));
 	}
 
@@ -156,7 +148,7 @@ dl_cet_check (struct link_map *m, const char *program)
 		continue;
 #endif
 
-	      if (enable_ibt && !ibt_always_on && !(l->l_cet & lc_ibt))
+	      if (enable_ibt && !force_ibt && !(l->l_cet & lc_ibt))
 		{
 		  /* Remember the first and last legacy objects.  */
 		  if (!need_legacy_bitmap)
@@ -167,7 +159,7 @@ dl_cet_check (struct link_map *m, const char *program)
 
 	      /* SHSTK is enabled only if it is enabled in executable as
 		 well as all shared objects.  */
-	      enable_shstk &= (shstk_always_on
+	      enable_shstk &= (force_shstk
 			       || (l->l_cet & lc_shstk) != 0);
 	    }
 
