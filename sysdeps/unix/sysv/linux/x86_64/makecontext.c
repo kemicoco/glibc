@@ -108,6 +108,22 @@ __makecontext (ucontext_t *ucp, void (*func) (void), int argc, ...)
 	   ucp->__ssp[2]: The size of the new shadow stack.
        */
       __push___start_context (ucp);
+
+      unsigned long long ssp_base = ucp->__ssp[1];
+      unsigned long long ssp_limit = ssp_base + ucp->__ssp[2];
+      unsigned long long base = THREAD_GETMEM (self, header.ssp.base);
+      if (base == 0)
+	{
+	  THREAD_SETMEM (self, header.ssp.base, ssp_base);
+	  THREAD_SETMEM (self, header.ssp.limit, ssp_limit);
+	}
+      else
+	{
+	  if (ssp_base < base)
+	    THREAD_SETMEM (self, header.ssp.base, ssp_base);
+	  else if (ssp_limit > THREAD_GETMEM (self, header.ssp.limit))
+	    THREAD_SETMEM (self, header.ssp.limit, ssp_limit);
+	}
     }
   else
 #endif
