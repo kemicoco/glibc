@@ -60,7 +60,7 @@ typedef struct
   void *__private_tm[4];
   /* GCC split stack support.  */
   void *__private_ss;
-  long int __glibc_reserved2;
+  unsigned long long ssp_limit;
   /* Must be kept even if it is no longer used by glibc since programs,
      like AddressSanitizer, depend on the size of tcbhead_t.  */
   __128bits __glibc_unused2[8][4] __attribute__ ((aligned (32)));
