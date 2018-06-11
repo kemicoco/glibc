@@ -33,31 +33,20 @@
 # define ARCH_CET_DISABLE	0x3002
 /* Lock all CET features.  */
 # define ARCH_CET_LOCK		0x3003
-/* Control how CET features should be enabled when launching a new image.
-   unsigned long *addr:
-     features: addr[0].
-     control: addr[1].
-     shadow stack size for a new image: addr[2].
- */
-# define ARCH_CET_EXEC		0x3004
 /* Allocate a new shadow stack with __syscall_ulong_t *addr:
      IN: requested shadow stack size: *addr.
      OUT: allocated shadow stack address: *addr.
  */
-# define ARCH_CET_ALLOC_SHSTK	0x3005
-/* Update shadow stack with __syscall_ulong_t *addr:
-     ssp: addr[0].
-     return_addr1: addr[1].
-     return_addr2: addr[2].
- */
-# define ARCH_CET_PUSH_SHSTK	0x3006
+# define ARCH_CET_ALLOC_SHSTK	0x3004
+/* Restore shadow stack pointer to __syscall_ulong_t ssp. */
+# define ARCH_CET_RSTOR_SHSTK	0x3005
+/* Set shadow stack size to unsigned long size. */
+# define ARCH_CET_SIZE_SHSTK	0x3006
 /* Return legacy region bitmap info in unsigned long *addr:
      address: addr[0].
      size: addr[1].
  */
 # define ARCH_CET_LEGACY_BITMAP	0x3007
-# define ARCH_CET_SWITCH_SHSTK	0x3008
-# define ARCH_CET_RSTOR_SHSTK	0x3009
 
 /* Valid control values of ARCH_CET_EXEC:
    0: Enable CET features based on ELF property note.
