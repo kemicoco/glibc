@@ -45,19 +45,13 @@
      OUT: allocated shadow stack address: *addr.
  */
 # define ARCH_CET_ALLOC_SHSTK	0x3005
-/* Update shadow stack with __syscall_ulong_t *addr:
-     ssp: addr[0].
-     return_addr1: addr[1].
-     return_addr2: addr[2].
- */
-# define ARCH_CET_PUSH_SHSTK	0x3006
+/* Restore shadow stack pointer to __syscall_ulong_t ssp. */
+# define ARCH_CET_RSTOR_SHSTK	0x3006
 /* Return legacy region bitmap info in unsigned long *addr:
      address: addr[0].
      size: addr[1].
  */
 # define ARCH_CET_LEGACY_BITMAP	0x3007
-# define ARCH_CET_SWITCH_SHSTK	0x3008
-# define ARCH_CET_RSTOR_SHSTK	0x3009
 
 /* Valid control values of ARCH_CET_EXEC:
    0: Enable CET features based on ELF property note.

@@ -46,10 +46,10 @@ ENTRY(__push___start_context)
 	/* Add 8 bytes to RSI since CALL will push the 8-byte return
 	   address onto stack.  */
 	leaq	8(%rsi), %rsp
-	/* Allocate and switch to the new shadow stack.  The size of the
-	   new shadow stack is passed in __ssp[1].  */
+	/* Allocate the new shadow stack.  The size of the new shadow
+	   stack is passed in __ssp[1].  */
 	lea	(oSSP + 8)(%rdi), %RSI_LP
-	movl	$ARCH_CET_SWITCH_SHSTK, %edi
+	movl	$ARCH_CET_ALLOC_SHSTK, %edi
 	movl	$__NR_arch_prctl, %eax
 	/* The new shadow stack base is returned in __ssp[1].  */
 	syscall
