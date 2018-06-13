@@ -9,6 +9,15 @@ Version 2.28
 
 Major new features:
 
+* The CPU run-time library for C, libcpu-rt-c, can be built as the part
+  of GNU C Library.  When the library is built with --enable-cpu-rt,
+  libcpu-rt-c will be created, it contains a subset of the GNU C library
+  with the optimized functions.  The resulting libcpu-rt-c.so is binary
+  compatible with older versions of libc.so so that libcpu-rt-c.so can
+  be used with LD_PRELOAD or linked directly with applications.  Note
+  that only on x86-64, optimized memory and string functions are added
+  to libcpu-rt-c.
+
 * <math.h> functions that round their results to a narrower type are added
   from TS 18661-1:2014 and TS 18661-3:2015:
 
