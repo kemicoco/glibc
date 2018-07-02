@@ -22,6 +22,9 @@
 #define _ERRNO_H	1
 #include <bits/errno.h>
 #include <asm-syntax.h>
+#if defined __CET__ && (__CET__ & 2) != 0
+# include <bits/prctl.h>
+#endif
 
 /* The userland implementation is:
    int clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg),
@@ -88,6 +91,41 @@ L(thread_start):
 	/* Clear the frame pointer.  The ABI suggests this be done, to mark
 	   the outermost frame obviously.  */
 	xorl	%ebp, %ebp
+
+#if defined __CET__ && (__CET__ & 2) != 0
+	/* Check if shadow stack is in use.  */
+	xorl	%esi, %esi
+	rdsspq	%rsi
+	testq	%rsi, %rsi
+	/* Call FN if shadow stack isn't in use.  */
+	je	L(no_shstk)
+
+	/* Allocate the new shadow stack.  FIXME: We should compute shadow
+	   stack from the normal stack size.  */
+	movl	$(0x8000 * 8), %edx
+	movq	%rdx, -24(%rsp)
+	lea	-24(%rsp), %RSI_LP
+	movl	$ARCH_CET_ALLOC_SHSTK, %edi
+	movl	$__NR_arch_prctl, %eax
+	syscall
+	testq	%rax, %rax
+	jnz	SYSCALL_ERROR_LABEL
+
+	/* Get the base address of the new shadow stack.  */
+	movq	-24(%rsp), %rsi
+
+	/* Save the base address and size of the new shadow stack.  */
+	movq	%rsi, %fs:SSP_BASE_OFFSET
+	movq	%rdx, %fs:SSP_SIZE_OFFSET
+
+	/* Restore the shadow stack.  */
+	rstorssp -8(%rsi, %rdx)
+
+	/* NB: No need to use saveprevssp to save parent shadow stack
+	   pointer.  */
+
+L(no_shstk):
+#endif
 
 	/* Set up arguments for the function call.  */
 	popq	%rax		/* Function to call.  */

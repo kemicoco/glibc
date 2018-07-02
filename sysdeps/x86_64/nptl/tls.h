@@ -65,7 +65,15 @@ typedef struct
      like AddressSanitizer, depend on the size of tcbhead_t.  */
   __128bits __glibc_unused2[8][4] __attribute__ ((aligned (32)));
 
-  void *__padding[8];
+  union
+    {
+      void *__padding[8];
+      struct
+	{
+	  unsigned long long base;
+	  unsigned long long size;
+	} ssp;
+    };
 } tcbhead_t;
 
 # ifdef __ILP32__
