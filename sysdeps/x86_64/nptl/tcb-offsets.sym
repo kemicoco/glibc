@@ -15,6 +15,7 @@ VGETCPU_CACHE_OFFSET	offsetof (tcbhead_t, vgetcpu_cache)
 FEATURE_1_OFFSET	offsetof (tcbhead_t, feature_1)
 SSP_BASE_OFFSET		offsetof (tcbhead_t, ssp.base)
 SSP_SIZE_OFFSET		offsetof (tcbhead_t, ssp.size)
+SSP_LIMIT_OFFSET	offsetof (tcbhead_t, ssp.limit)
 
 -- Not strictly offsets, but these values are also used in the TCB.
 TCB_CANCELSTATE_BITMASK	 CANCELSTATE_BITMASK

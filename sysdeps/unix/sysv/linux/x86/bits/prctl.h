@@ -52,6 +52,7 @@
      size: addr[1].
  */
 # define ARCH_CET_LEGACY_BITMAP	0x3007
+# define ARCH_CET_STATUS_NEW	0x3008
 
 /* Valid control values of ARCH_CET_EXEC:
    0: Enable CET features based on ELF property note.

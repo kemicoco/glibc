@@ -72,6 +72,7 @@ typedef struct
 	{
 	  unsigned long long base;
 	  unsigned long long size;
+	  unsigned long long limit;
 	} ssp;
     };
 } tcbhead_t;

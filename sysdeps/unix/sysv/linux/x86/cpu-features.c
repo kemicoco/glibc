@@ -31,9 +31,9 @@ static inline void
 init_cpu_features (struct cpu_features *cpu_features)
 {
   /* Check CET status.  */
-  unsigned long cet_status[3];
+  __syscall_ulong_t cet_status[4];
   INTERNAL_SYSCALL_DECL (err);
-  int res = INTERNAL_SYSCALL (arch_prctl, err, 2, ARCH_CET_STATUS,
+  int res = INTERNAL_SYSCALL (arch_prctl, err, 2, ARCH_CET_STATUS_NEW,
 			      cet_status);
 
   /* Update dl_x86_feature_1.  */
@@ -41,6 +41,8 @@ init_cpu_features (struct cpu_features *cpu_features)
     {
       GL(dl_x86_feature_1)[0] = cet_status[0];
       GL(dl_x86_feature_1)[1] = cet_status[1];
+      GL(dl_x86_ssp)[0] = cet_status[2];
+      GL(dl_x86_ssp)[1] = cet_status[3];
     }
 
   x86_init_cpu_features (cpu_features);
@@ -95,6 +97,10 @@ x86_setup_tls (void)
 {
   __libc_setup_tls ();
   THREAD_SETMEM (THREAD_SELF, header.feature_1, GL(dl_x86_feature_1)[0]);
+  THREAD_SETMEM (THREAD_SELF, header.ssp.base, GL(dl_x86_ssp)[0]);
+  THREAD_SETMEM (THREAD_SELF, header.ssp.size, GL(dl_x86_ssp)[1]);
+  THREAD_SETMEM (THREAD_SELF, header.ssp.limit,
+		 GL(dl_x86_ssp)[0] + GL(dl_x86_ssp)[1]);
 }
 
 #  define ARCH_SETUP_TLS() x86_setup_tls ()

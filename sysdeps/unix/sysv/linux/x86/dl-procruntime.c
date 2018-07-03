@@ -65,4 +65,15 @@ PROCINFO_CLASS unsigned long _dl_x86_legacy_bitmap[2]
 # else
 ,
 # endif
+
+# if !defined PROCINFO_DECL && defined SHARED
+  ._dl_x86_ssp
+# else
+PROCINFO_CLASS __syscall_ulong_t _dl_x86_ssp[2]
+# endif
+# if !defined SHARED || defined PROCINFO_DECL
+;
+# else
+,
+# endif
 #endif

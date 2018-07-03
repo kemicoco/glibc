@@ -114,12 +114,14 @@ L(thread_start):
 	/* Get the base address of the new shadow stack.  */
 	movq	-24(%rsp), %rsi
 
-	/* Save the base address and size of the new shadow stack.  */
+	/* Save the base address, size and limit of the shadow stack.  */
+	leaq	(%rsi, %rdx), %rax
 	movq	%rsi, %fs:SSP_BASE_OFFSET
 	movq	%rdx, %fs:SSP_SIZE_OFFSET
+	movq	%rax, %fs:SSP_LIMIT_OFFSET
 
 	/* Restore the shadow stack.  */
-	rstorssp -8(%rsi, %rdx)
+	rstorssp -8(%rax)
 
 	/* NB: No need to use saveprevssp to save parent shadow stack
 	   pointer.  */

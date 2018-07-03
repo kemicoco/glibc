@@ -315,11 +315,19 @@ mprotect_failure:
       if (cet_feature_changed)
 	{
 	  unsigned int feature_1 = 0;
+	  struct pthread *self = THREAD_SELF;
 	  if (enable_ibt)
 	    feature_1 |= GNU_PROPERTY_X86_FEATURE_1_IBT;
 	  if (enable_shstk)
-	    feature_1 |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
-	  struct pthread *self = THREAD_SELF;
+	    {
+	      feature_1 |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
+	      THREAD_SETMEM (THREAD_SELF, header.ssp.base,
+			     GL(dl_x86_ssp)[0]);
+	      THREAD_SETMEM (THREAD_SELF, header.ssp.size,
+			     GL(dl_x86_ssp)[1]);
+	      THREAD_SETMEM (THREAD_SELF, header.ssp.limit,
+			     GL(dl_x86_ssp)[0] + GL(dl_x86_ssp)[1]);
+	    }
 	  THREAD_SETMEM (self, header.feature_1, feature_1);
 	}
     }
